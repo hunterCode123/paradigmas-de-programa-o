@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  geodb-app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8080:80"
+    volumes:
+      - ./src:/usr/share/nginx/html:ro
+      - ./.env:/usr/share/nginx/html/.env:ro
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
