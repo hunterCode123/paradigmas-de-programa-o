@@ -8,7 +8,7 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./src:/usr/share/nginx/html:ro
+      - ./src:/usr/share/nginx/html
       - ./.env:/usr/share/nginx/html/.env:ro
     environment:
       - NODE_ENV=production

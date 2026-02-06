@@ -7,25 +7,43 @@ class Config {
 
     async load() {
         try {
+            // Tenta buscar o arquivo .env na raiz do servidor
             const response = await fetch('/.env');
+            
+            // Verifica se o arquivo existe (status 200-299)
+            if (!response.ok) {
+                throw new Error(`Arquivo .env não encontrado (${response.status})`);
+            }
+
             const text = await response.text();
             
+            // Verificação de segurança: Se o conteúdo começar com '<', é HTML (erro 404 do Nginx), não um .env
+            if (text.trim().startsWith('<')) {
+                throw new Error('O conteúdo retornado parece ser HTML, não um arquivo .env válido');
+            }
+            
+            // Processa o arquivo linha por linha
             text.split('\n').forEach(line => {
                 line = line.trim();
+                // Ignora linhas vazias ou comentários (#)
                 if (line && !line.startsWith('#')) {
                     const [key, ...valueParts] = line.split('=');
-                    const value = valueParts.join('=').trim();
+                    const value = valueParts.join('=').trim(); // Reconstrói valor caso tenha '=' no conteúdo
                     this.settings[key.trim()] = value;
                 }
             });
             
+            console.log('✅ Configuração carregada via .env');
             this.loaded = true;
             return this.settings;
+
         } catch (error) {
-            console.error('Erro ao carregar configurações:', error);
-            // Configurações padrão caso falhe
+            console.warn('⚠️ Usando configurações padrão. Motivo:', error.message);
+            
+            // Configurações de fallback (segurança)
             this.settings = {
-                GEODB_API_KEY: '',
+                // Se o .env falhar, você pode colocar a chave aqui temporariamente para testes locais
+                GEODB_API_KEY: '', 
                 GEODB_API_HOST: 'wft-geo-db.p.rapidapi.com',
                 GEODB_BASE_URL: 'https://wft-geo-db.p.rapidapi.com/v1/geo',
                 CITIES_PER_PAGE: '10',

@@ -6,7 +6,7 @@ COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 # Copiar arquivos da aplicação
 COPY src/ /usr/share/nginx/html/
 
-# Copiar .env
+# Copiar .env (CRUCIAL: Esta linha copia o arquivo para dentro do container)
 COPY .env /usr/share/nginx/html/.env
 
 # Expor porta
