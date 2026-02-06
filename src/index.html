@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoDB Clustering - K-means com Web Workers</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌍 GeoDB Cities Clustering</h1>
+            <p>Exploração Assíncrona e Agrupamento Paralelo com K-means</p>
+        </header>
+
+        <!-- Seção de Exploração -->
+        <section class="explorer-section">
+            <h2>Exploração de Cidades</h2>
+            <div class="search-controls">
+                <input type="text" id="searchInput" placeholder="Buscar cidades...">
+                <button id="searchBtn">Buscar</button>
+                <button id="prevPageBtn" disabled>← Anterior</button>
+                <span id="pageInfo">Página 1</span>
+                <button id="nextPageBtn">Próximo →</button>
+            </div>
+            
+            <div id="citiesGrid" class="cities-grid">
+                <!-- Cidades serão carregadas aqui -->
+            </div>
+        </section>
+
+        <!-- Seção de Repositório -->
+        <section class="repository-section">
+            <h2>Cidades Selecionadas (<span id="selectedCount">0</span>)</h2>
+            <div id="selectedCities" class="selected-cities">
+                <!-- Cidades selecionadas aparecerão aqui -->
+            </div>
+            <button id="clearSelectedBtn" class="danger-btn">Limpar Seleção</button>
+        </section>
+
+        <!-- Seção de Processamento Massivo -->
+        <section class="massive-section">
+            <h2>Busca Massiva e Clusterização</h2>
+            <div class="massive-controls">
+                <label for="kClusters">Número de Clusters (k):</label>
+                <input type="number" id="kClusters" value="5" min="2" max="20">
+                <button id="startMassiveFetchBtn" class="primary-btn">Iniciar Busca Massiva</button>
+            </div>
+            
+            <div class="progress-container">
+                <div id="progressBar" class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <p id="progressText">Aguardando início...</p>
+            </div>
+        </section>
+
+        <!-- Seção de Resultados -->
+        <section class="results-section" style="display: none;">
+            <h2>Resultados da Clusterização</h2>
+            <div id="clustersContainer" class="clusters-container">
+                <!-- Clusters aparecerão aqui -->
+            </div>
+        </section>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+            <div class="spinner"></div>
+            <p id="loadingText">Carregando...</p>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
