@@ -1,4 +1,3 @@
-// js/algorithms/kmeans.js
 import { SharedClusterBuffer } from '../utils/sharedBuffer.js';
 
 export class KMeans {
@@ -8,69 +7,86 @@ export class KMeans {
         this.convergenceThreshold = convergenceThreshold;
         this.numWorkers = numWorkers;
         this.workers = [];
-        this.clusterBuffer = new SharedClusterBuffer(k); // Cria buffer para resultado
+        this.clusterBuffer = new SharedClusterBuffer(k);
     }
 
     async fit(sharedCityBuffer, totalCities) {
-        console.log("Iniciando K-Means Paralelo...");
-        
-        // 1. Inicializa Centróides Aleatórios (leitura direta do buffer de cidades)
-        this.initializeCentroids(sharedCityBuffer, totalCities);
+        const minMax = this.calculateMinMax(sharedCityBuffer, totalCities);
 
-        // 2. Inicializa Workers
-        await this.initWorkers(sharedCityBuffer, totalCities);
+        let currentCentroids = this.initializeCentroids(sharedCityBuffer, totalCities, minMax);
+
+        await this.initWorkers(sharedCityBuffer, totalCities, minMax);
 
         let iterations = 0;
         let converged = false;
 
         while (iterations < this.maxIterations && !converged) {
-            // Reset contadores de cluster para nova iteração
-            this.clusterBuffer.resetCounters();
+            const partialResults = await this.runIterationStep(currentCentroids, totalCities);
 
-            // Etapa 1: Atribuição (Paralela)
-            await this.runAssignmentStep(totalCities);
+            const newCentroids = this.aggregateCentroids(partialResults);
 
-            // Etapa 2: Atualização de Centróides (Paralela/Híbrida)
-            const newCentroids = await this.runUpdateStep();
-
-            // Verifica Convergência
-            converged = this.checkConvergence(newCentroids);
+            converged = this.checkConvergence(currentCentroids, newCentroids);
             
-            // Atualiza centróides para próxima iteração
-            this.updateCentroidsBuffer(newCentroids);
-            
+            currentCentroids = newCentroids;
             iterations++;
-            
-            // Opcional: Notificar progresso para UI
-            console.log(`Iteração ${iterations} concluída.`);
         }
+
+        this.updateCentroidsBuffer(currentCentroids);
+
+        await this.runFinalizeStep(totalCities);
 
         this.terminateWorkers();
 
         return {
             buffer: this.clusterBuffer,
             iterations: iterations,
-            centroids: this.getCentroidsFromBuffer()
+            centroids: currentCentroids
         };
     }
 
-    initializeCentroids(cityBuffer, totalCities) {
-        // Pega K cidades aleatórias como centróides iniciais
+    calculateMinMax(sharedBuffer, totalCities) {
+        let minLat = Infinity, maxLat = -Infinity;
+        let minLon = Infinity, maxLon = -Infinity;
+        let minPop = Infinity, maxPop = -Infinity;
+
+        const view = new Float64Array(sharedBuffer.getBuffer());
+        const fields = 155;
+
+        for (let i = 0; i < totalCities; i++) {
+            const offset = i * fields;
+            const lat = view[offset + 1];
+            const lon = view[offset + 2];
+            const pop = view[offset + 3];
+
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+            if (lon < minLon) minLon = lon;
+            if (lon > maxLon) maxLon = lon;
+            if (pop < minPop) minPop = pop;
+            if (pop > maxPop) maxPop = pop;
+        }
+
+        return { minLat, maxLat, minLon, maxLon, minPop, maxPop };
+    }
+
+    initializeCentroids(cityBuffer, totalCities, minMax) {
+        const centroids = [];
         const view = new Float64Array(cityBuffer.getBuffer());
         const fields = 155;
         
         for (let i = 0; i < this.k; i++) {
             const randIdx = Math.floor(Math.random() * totalCities);
             const offset = randIdx * fields;
-            this.clusterBuffer.writeCentroid(i, 
-                view[offset + 1], // lat
-                view[offset + 2], // lon
-                view[offset + 3]  // pop
-            );
+            centroids.push({
+                latitude: view[offset + 1],
+                longitude: view[offset + 2],
+                population: view[offset + 3]
+            });
         }
+        return centroids;
     }
 
-    async initWorkers(cityBuffer, totalCities) {
+    async initWorkers(cityBuffer, totalCities, minMax) {
         const promises = [];
         for (let i = 0; i < this.numWorkers; i++) {
             const worker = new Worker('/js/workers/clusterWorker.js', { type: 'module' });
@@ -83,12 +99,10 @@ export class KMeans {
                 worker.postMessage({
                     type: 'init',
                     data: {
-                        cityBuffer: cityBuffer.getBuffer(), // Passa buffer bruto
-                        clusterBuffer: this.clusterBuffer.getCitiesBuffer(),
-                        clusterCounters: this.clusterBuffer.getCountersBuffer(),
-                        centroidBuffer: this.clusterBuffer.getCentroidBuffer(),
+                        cityBuffer: cityBuffer.getBuffer(),
                         totalCities: totalCities,
-                        k: this.k
+                        k: this.k,
+                        minMax: minMax
                     }
                 });
             }));
@@ -96,19 +110,23 @@ export class KMeans {
         await Promise.all(promises);
     }
 
-    runAssignmentStep(totalCities) {
+    runIterationStep(centroids, totalCities) {
         const batchSize = Math.ceil(totalCities / this.numWorkers);
         const promises = this.workers.map((worker, index) => {
             return new Promise(resolve => {
-                worker.onmessage = (e) => {
-                    if (e.data.type === 'assignComplete') resolve();
+                const handler = (e) => {
+                    if (e.data.type === 'iterationComplete') {
+                        worker.removeEventListener('message', handler);
+                        resolve(new Float64Array(e.data.partialSums));
+                    }
                 };
+                worker.addEventListener('message', handler);
                 worker.postMessage({
-                    type: 'assignClusters',
+                    type: 'iterate',
                     data: {
-                        startIndex: index * batchSize,
-                        endIndex: Math.min((index + 1) * batchSize, totalCities),
-                        workerId: index
+                        centroids: centroids,
+                        startOffset: index * batchSize,
+                        endOffset: Math.min((index + 1) * batchSize, totalCities)
                     }
                 });
             });
@@ -116,67 +134,78 @@ export class KMeans {
         return Promise.all(promises);
     }
 
-    runUpdateStep() {
-        // Distribui o cálculo dos K clusters entre os workers
-        // Ex: Cluster 0 -> Worker 0, Cluster 1 -> Worker 1...
-        const newCentroids = new Array(this.k).fill(null);
-        const promises = [];
-        
-        for (let i = 0; i < this.k; i++) {
-            const worker = this.workers[i % this.numWorkers];
-            promises.push(new Promise(resolve => {
-                const tempHandler = (e) => {
-                    if (e.data.type === 'centroidCalculated' && e.data.clusterIndex === i) {
-                        worker.removeEventListener('message', tempHandler);
-                        resolve(e.data.centroid);
-                    }
-                };
-                worker.addEventListener('message', tempHandler);
-                
-                worker.postMessage({
-                    type: 'calculateCentroids',
-                    data: { clusterIndex: i, workerId: i % this.numWorkers }
-                });
-            }));
-        }
+    aggregateCentroids(partialResults) {
+        const sums = new Float64Array(this.k * 4);
 
-        return Promise.all(promises).then(results => {
-            return results.map(r => {
-                if (r.count === 0) return { latitude: 0, longitude: 0, population: 0 }; // Tratamento simples
-                return {
-                    latitude: r.lat / r.count,
-                    longitude: r.lon / r.count,
-                    population: r.pop / r.count
-                };
-            });
+        partialResults.forEach(partial => {
+            for (let i = 0; i < sums.length; i++) {
+                sums[i] += partial[i];
+            }
         });
+
+        const newCentroids = [];
+        for (let i = 0; i < this.k; i++) {
+            const base = i * 4;
+            const count = sums[base];
+            
+            if (count > 0) {
+                newCentroids.push({
+                    latitude: sums[base + 1] / count,
+                    longitude: sums[base + 2] / count,
+                    population: sums[base + 3] / count
+                });
+            } else {
+                newCentroids.push({ latitude: 0, longitude: 0, population: 0 });
+            }
+        }
+        return newCentroids;
     }
 
-    checkConvergence(newCentroids) {
-        const currentCentroids = this.getCentroidsFromBuffer();
+    checkConvergence(oldCentroids, newCentroids) {
         for (let i = 0; i < this.k; i++) {
             const dist = Math.sqrt(
-                Math.pow(currentCentroids[i].latitude - newCentroids[i].latitude, 2) +
-                Math.pow(currentCentroids[i].longitude - newCentroids[i].longitude, 2) +
-                Math.pow(currentCentroids[i].population - newCentroids[i].population, 2)
+                Math.pow(oldCentroids[i].latitude - newCentroids[i].latitude, 2) +
+                Math.pow(oldCentroids[i].longitude - newCentroids[i].longitude, 2) +
+                Math.pow(oldCentroids[i].population - newCentroids[i].population, 2)
             );
             if (dist > this.convergenceThreshold) return false;
         }
         return true;
     }
 
-    updateCentroidsBuffer(newCentroids) {
-        newCentroids.forEach((c, i) => {
-            this.clusterBuffer.writeCentroid(i, c.latitude, c.longitude, c.population);
+    async runFinalizeStep(totalCities) {
+        this.clusterBuffer.resetCounters();
+        
+        const batchSize = Math.ceil(totalCities / this.numWorkers);
+        const promises = this.workers.map((worker, index) => {
+            return new Promise(resolve => {
+                const handler = (e) => {
+                    if (e.data.type === 'finalizeComplete') {
+                        worker.removeEventListener('message', handler);
+                        resolve();
+                    }
+                };
+                worker.addEventListener('message', handler);
+                
+                worker.postMessage({
+                    type: 'finalize',
+                    data: {
+                        clusterBuffer: this.clusterBuffer.getCitiesBuffer(),
+                        countersBuffer: this.clusterBuffer.getCountersBuffer(),
+                        maxCitiesPerCluster: 5000,
+                        startOffset: index * batchSize,
+                        endOffset: Math.min((index + 1) * batchSize, totalCities)
+                    }
+                });
+            });
         });
+        return Promise.all(promises);
     }
 
-    getCentroidsFromBuffer() {
-        const centroids = [];
-        for (let i = 0; i < this.k; i++) {
-            centroids.push(this.clusterBuffer.readCentroid(i));
-        }
-        return centroids;
+    updateCentroidsBuffer(centroids) {
+        centroids.forEach((c, i) => {
+            this.clusterBuffer.writeCentroid(i, c.latitude, c.longitude, c.population);
+        });
     }
 
     terminateWorkers() {
