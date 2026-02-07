@@ -1,8 +1,9 @@
-// Gerenciador de SharedArrayBuffer para armazenar cidades
 export class SharedCityBuffer {
     constructor(maxCities = 10000) {
         this.maxCities = maxCities;
         
+        this.bufferCapacity = parseInt(maxCities) + 500;
+
         // Estrutura de cada cidade (em Float64Array):
         // [0] = id (número)
         // [1] = latitude
@@ -13,14 +14,13 @@ export class SharedCityBuffer {
         // [55-104] = country (50 chars)
         // [105-154] = region (50 chars)
         
-        this.fieldsPerCity = 155; // Campos numéricos + strings
-        this.bytesPerCity = this.fieldsPerCity * 8; // Float64 = 8 bytes
+        this.fieldsPerCity = 155; 
+        this.bytesPerCity = this.fieldsPerCity * 8; 
         
-        const totalBytes = this.maxCities * this.bytesPerCity;
+        const totalBytes = this.bufferCapacity * this.bytesPerCity;
         this.buffer = new SharedArrayBuffer(totalBytes);
         this.view = new Float64Array(this.buffer);
         
-        // Contador de cidades escritas
         this.counterBuffer = new SharedArrayBuffer(4);
         this.counter = new Int32Array(this.counterBuffer);
         Atomics.store(this.counter, 0, 0);
@@ -34,30 +34,26 @@ export class SharedCityBuffer {
         return this.counterBuffer;
     }
 
-    // Escreve uma cidade no buffer
     writeCity(city, index) {
-        if (index >= this.maxCities) {
-            throw new Error('Índice de cidade excede capacidade do buffer');
+        if (index >= this.bufferCapacity) {
+            throw new Error(`Índice de cidade (${index}) excede capacidade do buffer (${this.bufferCapacity})`);
         }
 
         const offset = index * this.fieldsPerCity;
         
-        // Campos numéricos
         this.view[offset] = city.id || 0;
         this.view[offset + 1] = city.latitude || 0;
         this.view[offset + 2] = city.longitude || 0;
         this.view[offset + 3] = city.population || 0;
         this.view[offset + 4] = city.elevationMeters || 0;
         
-        // Strings (convertidas para códigos de caracteres)
         this.writeString(city.name || '', offset + 5, 50);
         this.writeString(city.country || '', offset + 55, 50);
         this.writeString(city.region || '', offset + 105, 50);
     }
 
-    // Lê uma cidade do buffer
     readCity(index) {
-        if (index >= this.maxCities) {
+        if (index >= this.bufferCapacity) {
             return null;
         }
 
@@ -75,7 +71,6 @@ export class SharedCityBuffer {
         };
     }
 
-    // Escreve string no buffer
     writeString(str, offset, maxLength) {
         const trimmed = (str || '').substring(0, maxLength);
         for (let i = 0; i < maxLength; i++) {
@@ -83,7 +78,6 @@ export class SharedCityBuffer {
         }
     }
 
-    // Lê string do buffer
     readString(offset, maxLength) {
         let result = '';
         for (let i = 0; i < maxLength; i++) {
@@ -94,54 +88,48 @@ export class SharedCityBuffer {
         return result;
     }
 
-    // Incrementa contador atômicamente
     incrementCounter() {
         return Atomics.add(this.counter, 0, 1);
     }
 
-    // Obtém contador atual
     getCounter() {
         return Atomics.load(this.counter, 0);
     }
 
-    // Reseta contador
     resetCounter() {
         Atomics.store(this.counter, 0, 0);
     }
 
-    // Lê todas as cidades armazenadas
     readAllCities() {
         const count = this.getCounter();
         const cities = [];
         
         for (let i = 0; i < count; i++) {
-            cities.push(this.readCity(i));
+            const city = this.readCity(i);
+            if (city) {
+                cities.push(city);
+            }
         }
         
         return cities;
     }
 }
 
-// Buffer para clusters
 export class SharedClusterBuffer {
     constructor(maxClusters = 20, maxCitiesPerCluster = 5000) {
         this.maxClusters = maxClusters;
         this.maxCitiesPerCluster = maxCitiesPerCluster;
         
-        // Estrutura similar ao SharedCityBuffer
         this.fieldsPerCity = 155;
         this.bytesPerCity = this.fieldsPerCity * 8;
         
-        // Buffer para centroides (k clusters * 3 valores: lat, lon, pop)
         this.centroidBuffer = new SharedArrayBuffer(maxClusters * 3 * 8);
         this.centroids = new Float64Array(this.centroidBuffer);
         
-        // Buffer para cidades de cada cluster
         const citiesBufferSize = maxClusters * maxCitiesPerCluster * this.bytesPerCity;
         this.citiesBuffer = new SharedArrayBuffer(citiesBufferSize);
         this.citiesView = new Float64Array(this.citiesBuffer);
         
-        // Contadores de cidades por cluster
         this.countersBuffer = new SharedArrayBuffer(maxClusters * 4);
         this.counters = new Int32Array(this.countersBuffer);
     }
