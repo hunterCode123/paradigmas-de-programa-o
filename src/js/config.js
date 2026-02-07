@@ -43,17 +43,21 @@ class Config {
             // Configurações de fallback (segurança)
             this.settings = {
                 // Se o .env falhar, você pode colocar a chave aqui temporariamente para testes locais
-                GEODB_API_KEY: '', 
+                GEODB_API_KEY: 'a5d9a69c9msh015a34273816474p17a5d0jsn4cbce05b3dc8', 
                 GEODB_API_HOST: 'wft-geo-db.p.rapidapi.com',
                 GEODB_BASE_URL: 'https://wft-geo-db.p.rapidapi.com/v1/geo',
                 CITIES_PER_PAGE: '10',
-                MASSIVE_FETCH_TOTAL: '10000',
+                MASSIVE_FETCH_TOTAL: '100',
                 NUM_WORKERS: '4',
                 DEFAULT_K_CLUSTERS: '5',
                 MAX_ITERATIONS: '100',
                 CONVERGENCE_THRESHOLD: '0.001',
-                REQUEST_DELAY_MS: '1000',
-                ERROR_RETRY_DELAY_MS: '5000',
+                
+                // --- VALORES ATUALIZADOS ---
+                REQUEST_DELAY_MS: '1500',       // 1.5 segundos entre requisições
+                ERROR_RETRY_DELAY_MS: '3000',   // 3 segundos após erro simples
+                // --------------------------
+                
                 RATE_LIMIT_RETRY_MS: '10000'
             };
             this.loaded = true;
