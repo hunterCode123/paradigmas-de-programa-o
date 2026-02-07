@@ -17,7 +17,7 @@ class Config {
 
             const text = await response.text();
             
-            // Verificação de segurança: Se o conteúdo começar com '<', é HTML (erro 404 do Nginx), não um .env
+            // Verificação de segurança: Se o conteúdo começar com '<', é HTML (erro 404 do Nginx)
             if (text.trim().startsWith('<')) {
                 throw new Error('O conteúdo retornado parece ser HTML, não um arquivo .env válido');
             }
@@ -28,7 +28,7 @@ class Config {
                 // Ignora linhas vazias ou comentários (#)
                 if (line && !line.startsWith('#')) {
                     const [key, ...valueParts] = line.split('=');
-                    const value = valueParts.join('=').trim(); // Reconstrói valor caso tenha '=' no conteúdo
+                    const value = valueParts.join('=').trim();
                     this.settings[key.trim()] = value;
                 }
             });
@@ -40,25 +40,23 @@ class Config {
         } catch (error) {
             console.warn('⚠️ Usando configurações padrão. Motivo:', error.message);
             
-            // Configurações de fallback (segurança)
+            // Configurações de fallback (Produção)
             this.settings = {
-                // Se o .env falhar, você pode colocar a chave aqui temporariamente para testes locais
-                GEODB_API_KEY: 'a5d9a69c9msh015a34273816474p17a5d0jsn4cbce05b3dc8', 
+                GEODB_API_KEY: 'fb427f5b38mshc2cc15c80d3bdf7p176f89jsnaf7f6edd75aa', 
                 GEODB_API_HOST: 'wft-geo-db.p.rapidapi.com',
                 GEODB_BASE_URL: 'https://wft-geo-db.p.rapidapi.com/v1/geo',
+                
                 CITIES_PER_PAGE: '10',
-                MASSIVE_FETCH_TOTAL: '100',
-                NUM_WORKERS: '4',
+                MASSIVE_FETCH_TOTAL: '10000', 
+                
                 DEFAULT_K_CLUSTERS: '5',
                 MAX_ITERATIONS: '100',
                 CONVERGENCE_THRESHOLD: '0.001',
-                
-                // --- VALORES ATUALIZADOS ---
-                REQUEST_DELAY_MS: '1500',       // 1.5 segundos entre requisições
-                ERROR_RETRY_DELAY_MS: '3000',   // 3 segundos após erro simples
-                // --------------------------
-                
-                RATE_LIMIT_RETRY_MS: '10000'
+
+                NUM_WORKERS: '4',
+                REQUEST_DELAY_MS: '2000',
+                ERROR_RETRY_DELAY_MS: '5000',
+                RATE_LIMIT_RETRY_MS: '15000'
             };
             this.loaded = true;
             return this.settings;

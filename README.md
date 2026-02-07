@@ -1,121 +1,70 @@
-# GeoDB Cities Clustering
+🌍 GeoDB Cities Clustering
+Aplicação web de alta performance para exploração e agrupamento (clustering) de dados geográficos. O projeto demonstra o uso avançado de Processamento Paralelo no navegador para analisar milhares de cidades simultaneamente.
 
-Sistema de exploração e clusterização de cidades usando a GeoDB Cities API, com processamento paralelo através de Web Workers e algoritmo K-means.
+🚀 Tecnologias e Conceitos
+Frontend: HTML5, CSS3, JavaScript (ES6 Modules).
 
-## 🚀 Tecnologias
+Concorrência: Web Workers (4 threads simultâneas).
 
-- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
-- **API**: GeoDB Cities API (RapidAPI)
-- **Concorrência**: Web Workers, SharedArrayBuffer, Atomics
-- **Containerização**: Docker, Docker Compose
+Memória Compartilhada: SharedArrayBuffer e Atomics (Leitura/Escrita segura).
 
-## 📋 Pré-requisitos
+Algoritmo: K-Means (Implementação própria, paralelizada).
 
-- Docker e Docker Compose instalados
-- Chave da API GeoDB Cities (obtenha em https://rapidapi.com/wirefreethought/api/geodb-cities)
+Infraestrutura: Docker & Nginx (Configurado com headers de segurança COOP/COEP).
 
-## 🔧 Instalação e Execução
+📋 Pré-requisitos
+Docker e Docker Compose instalados.
 
-### 1. Clone o repositório ou crie a estrutura de pastas
-```bash
-mkdir geodb-clustering
-cd geodb-clustering
-```
+Uma chave de API gratuita da GeoDB Cities.
 
-### 2. Configure o arquivo `.env`
+🔧 Como Rodar o Projeto
+1. Configuração
+Crie um arquivo .env na raiz do projeto e adicione sua chave:
 
-Edite o arquivo `.env` na raiz do projeto e adicione sua chave da API:
-```env
+Snippet de código
 GEODB_API_KEY=sua_chave_aqui
-```
+GEODB_API_HOST=wft-geo-db.p.rapidapi.com
+GEODB_BASE_URL=https://wft-geo-db.p.rapidapi.com/v1/geo
 
-### 3. Execute com Docker
-```bash
+# Configurações de Execução
+CITIES_PER_PAGE=10
+MASSIVE_FETCH_TOTAL=10000
+NUM_WORKERS=4
+REQUEST_DELAY_MS=2000
+2. Execução
+Utilize o Docker para subir o servidor com os headers de segurança necessários para o SharedArrayBuffer:
+
+Bash
 docker-compose up --build
-```
+3. Acesso
+Abra o navegador em: http://localhost:8080
 
-### 4. Acesse a aplicação
+📦 Funcionalidades Principais
+Exploração Manual: Busca paginada de cidades com filtro por nome.
 
-Abra seu navegador em: `http://localhost:8080`
+Busca Massiva (Paralela):
 
-## 📚 Funcionalidades
+Coleta de 10.000 cidades utilizando 4 Workers simultâneos.
 
-### 1. Exploração de Cidades
-- Busca paginada de cidades
-- Filtro por nome
-- Seleção de cidades para análise
+Respeita o Rate Limit da API (pausas automáticas).
 
-### 2. Busca Massiva
-- Coleta paralela de ~10.000 cidades
-- Uso de Web Workers para paralelização
-- Controle de taxa de requisições (rate limiting)
-- SharedArrayBuffer para armazenamento eficiente
+Armazenamento em memória binária compartilhada.
 
-### 3. Clusterização K-means
-- Algoritmo K-means implementado do zero
-- Processamento paralelo com Workers
-- Métricas: latitude, longitude, população
-- Visualização interativa dos resultados
+Clusterização K-Means:
 
-## 🏗️ Arquitetura
-```
-- Interface HTML/CSS
-- Componentes JavaScript (ES6 Modules)
-- Web Workers para processamento paralelo
-- SharedArrayBuffer para memória compartilhada
-- Mutex com Atomics para sincronização
-- Docker para containerização
-```
+Agrupamento baseado em Latitude, Longitude e População.
 
-## ⚙️ Configurações (`.env`)
+Cálculo distribuído entre workers.
 
-| Variável | Descrição | Padrão |
-|----------|-----------|--------|
-| `GEODB_API_KEY` | Chave da API | - |
-| `CITIES_PER_PAGE` | Cidades por página | 10 |
-| `MASSIVE_FETCH_TOTAL` | Total de cidades na busca massiva | 10000 |
-| `NUM_WORKERS` | Número de workers paralelos | 4 |
-| `DEFAULT_K_CLUSTERS` | Valor padrão de K | 5 |
-| `REQUEST_DELAY_MS` | Delay entre requisições | 1000 |
-| `ERROR_RETRY_DELAY_MS` | Delay após erro | 5000 |
-| `RATE_LIMIT_RETRY_MS` | Delay após rate limit | 10000 |
+Sistema de Cache:
 
-## 🔒 Segurança e Concorrência
+Salvar: Exporte os dados buscados para um arquivo .json (Backup).
 
-- **Mutex**: Controle de acesso exclusivo à API
-- **Atomics**: Operações atômicas no SharedArrayBuffer
-- **Rate Limiting**: Respeito aos limites da API
-- **Error Handling**: Retry com backoff exponencial
+Carregar: Importe o arquivo para retomar a análise sem consumir a API novamente.
 
-## 🎯 Paradigma Funcional
+⚠️ Notas Importantes
+A busca massiva de 10.000 cidades pode levar alguns minutos devido aos limites da API gratuita (delay de 2s por requisição).
 
-O código segue princípios de programação funcional:
-- Imutabilidade quando possível
-- Funções puras
-- Composição de funções
-- Evita efeitos colaterais globais
+Use os botões de Salvar/Carregar Cache para agilizar os testes.
 
-## 📊 Algoritmo K-means
-
-1. **Inicialização**: K-means++ para centroides iniciais
-2. **Atribuição**: Cada cidade ao cluster mais próximo
-3. **Atualização**: Recálculo dos centroides
-4. **Convergência**: Iteração até threshold ou max iterations
-
-## 🐳 Docker
-
-A aplicação é servida via Nginx com headers específicos para SharedArrayBuffer:
-- `Cross-Origin-Opener-Policy: same-origin`
-- `Cross-Origin-Embedder-Policy: require-corp`
-
-## 🤝 Contribuindo
-
-Este é um projeto acadêmico demonstrando conceitos de:
-- Programação assíncrona
-- Concorrência e paralelismo
-- Programação funcional
-- Algoritmos de clustering
-
-## 📝 Licença
-
-Projeto educacional - livre para uso acadêmico.
+Desenvolvido para fins acadêmicos sobre Sistemas Distribuídos e Programação Funcional.

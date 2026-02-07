@@ -49,30 +49,53 @@ export class CityExplorer {
     }
 
     renderCities(cities) {
-        if (cities.length === 0) {
+        // Verificação de segurança extra para array vazio ou nulo
+        if (!cities || cities.length === 0) {
             this.container.innerHTML = '<div class="no-results">Nenhuma cidade encontrada</div>';
             return;
         }
 
-        this.container.innerHTML = cities.map(city => `
+        // Mapeia as cidades criando o HTML
+        this.container.innerHTML = cities.map(city => {
+            // --- CORREÇÃO DE SEGURANÇA (CRUCIAL) ---
+            // Substitui aspas simples (') por &#39; para não quebrar o atributo data-city do HTML
+            // Isso resolve o erro "Unterminated string in JSON"
+            const safeCityData = JSON.stringify(city).replace(/'/g, "&#39;");
+
+            return `
             <div class="city-card" data-city-id="${city.id}">
-                <h3>${city.name}</h3>
-                <p><strong>País:</strong> ${city.country}</p>
-                <p><strong>Região:</strong> ${city.region || 'N/A'}</p>
-                <p><strong>População:</strong> ${(city.population || 0).toLocaleString()}</p>
-                <p><strong>Coordenadas:</strong> ${city.latitude.toFixed(4)}, ${city.longitude.toFixed(4)}</p>
-                <button class="add-btn" data-city='${JSON.stringify(city)}'>
+                <div class="card-header">
+                    <h3>${city.name}</h3>
+                </div>
+                <div class="card-body">
+                    <p><strong>País:</strong> ${city.country}</p>
+                    <p><strong>Região:</strong> ${city.region || 'N/A'}</p>
+                    <p><strong>População:</strong> ${(city.population || 0).toLocaleString()}</p>
+                    <p><strong>Coordenadas:</strong> ${city.latitude.toFixed(4)}, ${city.longitude.toFixed(4)}</p>
+                </div>
+                <button class="add-btn primary-btn" data-city='${safeCityData}'>
                     ➕ Adicionar
                 </button>
             </div>
-        `).join('');
+            `;
+        }).join('');
 
+        // Reatacha os eventos aos botões
         this.container.querySelectorAll('.add-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                const city = JSON.parse(btn.dataset.city);
-                this.onCitySelect(city);
-                btn.textContent = '✓ Adicionada';
-                btn.disabled = true;
+                try {
+                    // Recupera o JSON seguro
+                    const city = JSON.parse(btn.dataset.city);
+                    this.onCitySelect(city);
+                    
+                    // Feedback visual
+                    btn.textContent = '✓ Adicionada';
+                    btn.disabled = true;
+                    btn.style.backgroundColor = '#10b981'; // Verde sucesso
+                    btn.style.cursor = 'default';
+                } catch (e) {
+                    console.error("Erro ao processar cidade selecionada:", e);
+                }
             });
         });
     }
@@ -93,7 +116,11 @@ export class CityExplorer {
         }
 
         if (nextBtn) {
-            nextBtn.disabled = !metadata || metadata.currentOffset + this.citiesPerPage >= 1000;
+            // GeoDB Free tier tem um limite de offset (geralmente não deixa passar de certos valores)
+            // Essa lógica evita tentar paginar infinitamente se a API bloquear
+            const totalCount = metadata.totalCount || 10000; 
+            const nextOffset = metadata.currentOffset + this.citiesPerPage;
+            nextBtn.disabled = nextOffset >= totalCount;
         }
     }
 

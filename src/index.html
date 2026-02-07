@@ -13,7 +13,6 @@
             <p>Exploração Assíncrona e Agrupamento Paralelo com K-means</p>
         </header>
 
-        <!-- Seção de Exploração -->
         <section class="explorer-section">
             <h2>Exploração de Cidades</h2>
             <div class="search-controls">
@@ -25,26 +24,39 @@
             </div>
             
             <div id="citiesGrid" class="cities-grid">
-                <!-- Cidades serão carregadas aqui -->
-            </div>
+                </div>
         </section>
 
-        <!-- Seção de Repositório -->
         <section class="repository-section">
             <h2>Cidades Selecionadas (<span id="selectedCount">0</span>)</h2>
-            <div id="selectedCities" class="selected-cities">
-                <!-- Cidades selecionadas aparecerão aqui -->
+            
+            <div class="cache-controls" style="margin: 10px 0; display: flex; gap: 10px; flex-wrap: wrap;">
+                <button id="btnSaveCache" class="primary-btn" style="background-color: #4b5563; font-size: 0.9rem;">💾 Salvar cache.json</button>
+                <button id="btnLoadCache" class="primary-btn" style="background-color: #4b5563; font-size: 0.9rem;">📂 Carregar cache.json</button>
+                <input type="file" id="fileInputCache" accept=".json" style="display: none;">
             </div>
+
+            <div id="selectedCities" class="selected-cities">
+                </div>
             <button id="clearSelectedBtn" class="danger-btn">Limpar Seleção</button>
         </section>
 
-        <!-- Seção de Processamento Massivo -->
         <section class="massive-section">
             <h2>Busca Massiva e Clusterização</h2>
+            
             <div class="massive-controls">
                 <label for="kClusters">Número de Clusters (k):</label>
                 <input type="number" id="kClusters" value="5" min="2" max="20">
+                
                 <button id="startMassiveFetchBtn" class="primary-btn">Iniciar Busca Massiva</button>
+                
+                <button id="btnRunKmeansOnly" class="primary-btn" style="background-color: #059669; margin-left: 10px;">⚡ Rodar K-Means (Sem Baixar)</button>
+            </div>
+
+            <div class="massive-cache-controls" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; display: flex; gap: 10px; flex-wrap: wrap;">
+                <button id="btnSaveMassive" class="secondary-btn" style="background-color: #6366f1; color: white;" disabled>💾 Salvar Busca (Cache)</button>
+                <button id="btnLoadMassive" class="secondary-btn" style="background-color: #6366f1; color: white;">📂 Carregar Busca (Cache)</button>
+                <input type="file" id="fileInputMassive" accept=".json" style="display: none;">
             </div>
             
             <div class="progress-container">
@@ -55,15 +67,12 @@
             </div>
         </section>
 
-        <!-- Seção de Resultados -->
         <section class="results-section" style="display: none;">
             <h2>Resultados da Clusterização</h2>
             <div id="clustersContainer" class="clusters-container">
-                <!-- Clusters aparecerão aqui -->
-            </div>
+                </div>
         </section>
 
-        <!-- Loading Overlay -->
         <div id="loadingOverlay" class="loading-overlay" style="display: none;">
             <div class="spinner"></div>
             <p id="loadingText">Carregando...</p>

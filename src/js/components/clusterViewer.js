@@ -13,7 +13,7 @@ export class ClusterViewer {
     }
 
     render() {
-        if (this.clusters.length === 0) {
+        if (!this.clusters || this.clusters.length === 0) {
             this.container.innerHTML = '<p>Nenhum cluster gerado ainda.</p>';
             return;
         }
@@ -30,12 +30,27 @@ export class ClusterViewer {
             </div>
             ${this.clusters.map((cluster, index) => {
                 const color = colors[index % colors.length];
-                const cities = cluster.cities;
+                const cities = cluster.cities || []; // Garante que é array
+                const count = cities.length;
 
-                const avgLat = cities.reduce((sum, c) => sum + c.latitude, 0) / cities.length;
-                const avgLon = cities.reduce((sum, c) => sum + c.longitude, 0) / cities.length;
-                const avgPop = cities.reduce((sum, c) => sum + (c.population || 0), 0) / cities.length;
+                // --- CÁLCULOS COM PROTEÇÃO CONTRA ERROS (NaN) ---
+                
+                // 1. Calcula totais (usando || 0 para evitar undefined)
                 const totalPop = cities.reduce((sum, c) => sum + (c.population || 0), 0);
+                const latSum = cities.reduce((sum, c) => sum + (c.latitude || 0), 0);
+                const lonSum = cities.reduce((sum, c) => sum + (c.longitude || 0), 0);
+
+                // 2. Calcula médias (Evita divisão por zero)
+                let avgPop = count > 0 ? (totalPop / count) : 0;
+                let avgLat = count > 0 ? (latSum / count) : 0;
+                let avgLon = count > 0 ? (lonSum / count) : 0;
+
+                // 3. Proteção Final: Se der NaN (dado corrompido), força ser 0
+                if (isNaN(avgPop)) avgPop = 0;
+                if (isNaN(avgLat)) avgLat = 0;
+                if (isNaN(avgLon)) avgLon = 0;
+
+                // -----------------------------------------------
 
                 return `
                     <div class="cluster-card" style="border-left: 5px solid ${color};">
@@ -44,7 +59,7 @@ export class ClusterViewer {
                         <div class="cluster-stats">
                             <div class="stat-item">
                                 <div class="stat-label">Cidades</div>
-                                <div class="stat-value">${cities.length}</div>
+                                <div class="stat-value">${count}</div>
                             </div>
                             <div class="stat-item">
                                 <div class="stat-label">População Média</div>
@@ -66,16 +81,16 @@ export class ClusterViewer {
 
                         <details>
                             <summary style="cursor: pointer; padding: 0.5rem; background: #f8fafc; border-radius: 0.25rem; margin-top: 1rem;">
-                                <strong>Ver ${cities.length} cidades</strong>
+                                <strong>Ver ${count} cidades</strong>
                             </summary>
                             <div class="cluster-cities">
                                 ${cities.slice(0, 100).map(city => `
                                     <div class="cluster-city-item">
-                                        <strong>${city.name}</strong><br>
-                                        <small>${city.country} • Pop: ${(city.population || 0).toLocaleString()}</small>
+                                        <strong>${city.name || 'Sem Nome'}</strong><br>
+                                        <small>${city.country || '-'} • Pop: ${(city.population || 0).toLocaleString()}</small>
                                     </div>
                                 `).join('')}
-                                ${cities.length > 100 ? `<div class="cluster-city-item"><em>... e mais ${cities.length - 100} cidades</em></div>` : ''}
+                                ${count > 100 ? `<div class="cluster-city-item"><em>... e mais ${count - 100} cidades</em></div>` : ''}
                             </div>
                         </details>
                     </div>
@@ -85,10 +100,12 @@ export class ClusterViewer {
     }
 
     show() {
-        document.querySelector('.results-section').style.display = 'block';
+        const el = document.querySelector('.results-section');
+        if (el) el.style.display = 'block';
     }
 
     hide() {
-        document.querySelector('.results-section').style.display = 'none';
+        const el = document.querySelector('.results-section');
+        if (el) el.style.display = 'none';
     }
 }
